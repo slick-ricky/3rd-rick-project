@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cafe.mapper.adminMapper">
+
+<!-- 메인화면 -->
+
+<select id="noticeSelect" resultType="BoardVO">
+	select * from board where gongji = "1" order by signdate desc limit 5
+</select>
+
+<select id="orderSelect" resultType="OdrVO">
+	select *, I.it_name, M.names from odr O
+	left join member M on O.id = M.id
+	left join item I on O.it_uid = I.it_uid
+	where od_status = "상품준비중" order by od_date desc limit 5
+</select>
+
+<select id="qnaSelect" resultType="BoardVO">
+	select * from board where code = "qna" and gongji != "1" order by signdate desc limit 5
+</select>
+
+<select id="orderCountJoin" resultType="CountDTO">
+	select count(*) as p,
+	(select count(*) from odr where od_status = '상품준비중') as a,
+	(select count(*) from odr where od_status = '배송출발') as b,
+	(select count(*) from odr where od_status = '배송완료') as c 
+	from odr
+	where od_status = '상품준비중'
+	<include refid="od_date2"></include>
+</select>
+
+<sql id="od_date2">
+	<if test="od_date != null and !od_date.equals('')">
+		AND od_date like CONCAT ('%', #{od_date}, '%')
+	</if>
+</sql>
+
+<select id="itemCountJoin" resultType="ItemCountDTO">
+	select count(*) as d, (select count(*) from item) as e 
+	from item
+	<![CDATA[
+		where it_uid != 0
+	]]>
+	<include refid="it_date2"></include>
+</select>
+
+<sql id="it_date2">
+	<if test="it_date != null and !it_date.equals('')">
+		AND it_date like CONCAT('%', #{it_date}, '%')
+	</if>
+</sql>
+
+<select id="todayCount" resultType="int">
+	select count(*) from member where id != 1111
+	<include refid="today"></include>
+</select>
+
+<sql id="today">
+	<if test="today != null and !today.equals('')">
+		and login_date like CONCAT('%', #{today}, '%')
+	</if>
+</sql>
+
+<select id="totalCount" resultType="int">
+	select count(*) from visit where id != 1111
+</select>
+
+<!-- 회원관리 -->
+
+<select id="memberList" resultType="MemberVO">
+	select * from member limit #{pageStart}, #{perPageNum}
+</select>
+
+<select id="member_countPaging" resultType="int">
+	<![CDATA[
+		select count(id) from member
+	]]>
+</select>
+
+<select id="memberInfo" resultType="MemberVO">
+	select * from member where id = #{id}
+</select>
+
+<update id="memberUpdate">
+	update member set pw = #{pw}, names = #{names}, email = #{email}, tel = #{tel}, point = #{point}, level = #{level} where id = #{id}
+</update>
+
+<update id="memberDelete">
+	update member set delmember = "Y" where id = #{id}
+</update>
+
+<update id="memberRestore">
+	update member set delmember = "N" where id = #{id}
+</update>
+
+
+
+<!-- Item -->
+
+<insert id="itemInsert">
+	insert into item (it_name, it_category, it_price, it_point, it_qty, it_desc, it_date, file1, file2, file3, it_new, it_season) values (#{it_name}, #{it_category}, #{it_price}, #{it_point}, #{it_qty}, #{it_desc}, #{it_date}, #{file1}, #{file2}, #{file3}, #{it_new}, #{it_season})
+</insert>
+
+<delete id="itemDlt">
+	delete from item where it_uid = #{it_uid}
+</delete>
+
+<!-- 상품리뷰-->
+<delete id="reviewDlt">
+	delete from my_review where od_group = #{od_group}
+</delete>
+
+<select id="ReviewSelect" resultType="MyReviewVO">
+	select R.*, M.names, I.it_category, I.it_new, I.it_season
+	from my_review R
+	left join member M on R.id = M.id
+	left join item I on R.it_name = I.it_name
+	
+	<!--필터링 시작 -->
+	<![CDATA[
+		where score >= 0
+	]]>	
+	<include refid="it_category"></include>
+	<include refid="score"></include>
+	<include refid="names"></include>
+	<include refid="it_new"></include>
+	<include refid="it_season"></include>
+	order by R.date desc limit #{pageStart}, #{perPageNum}
+	<!--필터링 끝 -->
+</select>
+
+<select id="ReviewCount" resultType="int">
+	select count(*)
+	from my_review R
+	left join member M on R.id = M.id
+	left join item I on R.it_name = I.it_name
+	
+	<!--필터링 시작 -->
+	<![CDATA[
+		where score >= 0
+	]]>	
+	<include refid="it_category"></include>
+	<include refid="score"></include>
+	<include refid="names"></include>
+	<include refid="it_new"></include>
+	<include refid="it_season"></include>
+	order by R.date desc
+	<!--필터링 끝 -->
+</select>
+
+<sql id="it_category">
+	<if test="it_category != null and !it_category.equals('')">
+		AND I.it_category = #{it_category}
+	</if>
+</sql>
+
+<sql id="score">
+	<choose>
+		<when test="score == null">
+		</when>
+		<when test="score != null">
+			<![CDATA[
+				AND R.score = #{score}
+			]]>
+		</when>
+	</choose>
+</sql>
+
+<sql id="names">
+	<if test="names != null and !names.equals('')">
+		AND M.names = #{names}
+	</if>
+</sql>
+
+<sql id="it_new">
+	<if test="it_new != null and !it_new.equals('')">
+		AND I.it_new = #{it_new}
+	</if>
+</sql>
+
+<sql id="it_season">
+	<if test="it_season != null and !it_season.equals('')">
+		AND I.it_season = #{it_season}
+	</if>
+</sql>
+
+<!-- 상품 업데이트 -->
+
+<select id="list2" resultType="ItemVO">
+	<!-- <![CDATA[ ]] 쓰는 이유 -->
+	<!-- sql 구문안에 비교 연산자가 들어갈 경우(특수문자) 문자열로 인식하게 하기 위해서 ... -->
+	<![CDATA[
+		select * from item where it_category = #{it_category} and it_uid > 0 order by it_uid desc
+	]]>  
+</select>
+
+<select id="item_up" resultType="ItemVO">
+	select * from item where it_uid = #{it_uid}
+</select>
+
+<update id="itemUpdate">
+	update item set it_name = #{it_name}, it_category = #{it_category}, it_price = #{it_price}, it_point = #{it_point}, it_qty = #{it_qty}, it_desc = #{it_desc}, it_date = #{it_date}, file1 = #{file1}, file2 = #{file2}, file3 = #{file3}, it_new = #{it_new}, it_season = #{it_season} where it_uid = #{it_uid} 
+</update>
+
+
+<!-- 주문관리 -->
+
+<update id="orderCheck">
+		update odr set checked = #{checked} where od_group = #{od_group}
+</update>
+
+<update id="checkAll">
+	update odr set checked = #{checked}
+</update>
+
+<update id="prepare">
+	UPDATE odr O 
+	LEFT JOIN time_record T 
+	ON O.od_group = T.od_group
+	SET O.od_status = "상품준비중", T.pay_done = #{today}
+	WHERE checked = "Y"
+</update>
+
+<update id="start">
+	UPDATE odr O 
+	LEFT JOIN time_record T 
+	ON O.od_group = T.od_group
+	SET O.od_status = "배송출발", T.delivering = #{today}
+	WHERE checked = "Y"
+</update>
+
+<update id="complete">
+	UPDATE odr O 
+	LEFT JOIN time_record T 
+	ON O.od_group = T.od_group
+	SET O.od_status = "배송완료", T.dvr_done = #{today}
+	WHERE checked = "Y"
+</update>
+
+<select id="od_count" resultType="int">
+	select count(*) from odr O
+	left join member M on O.id = M.id
+	<!--필터링 시작 -->
+	<![CDATA[
+		where od_uid >= 0
+	]]>	
+	<include refid="od_status"></include>
+	<include refid="od_date"></include>
+	<include refid="od_group"></include>
+	<include refid="names"></include>
+	order by O.od_date desc;
+	<!--필터링 끝 -->
+</select>
+
+
+<select id="od_list" resultType="OdrVO">
+	select O.*, M.names from odr O
+	left join member M on O.id = M.id
+	<!--필터링 시작 -->
+	<![CDATA[
+		where od_uid >= 0
+	]]>	
+	<include refid="od_status"></include>
+	<include refid="od_date"></include>
+	<include refid="od_group"></include>
+	<include refid="names"></include>
+	order by O.od_date desc limit #{pageStart}, #{perPageNum}
+	<!--필터링 끝 -->
+</select>
+
+<sql id="od_status">
+	<if test="od_status != null and !od_status.equals('')">
+		AND O.od_status = #{od_status}
+	</if>
+</sql>
+
+<sql id="od_date">
+	<if test="od_date != null and !od_date.equals('')">
+		AND O.od_date like CONCAT('%', #{od_date}, '%')
+	</if>
+</sql>
+
+<sql id="od_group">
+	<choose>
+		<when test="od_group == null">
+		</when>
+		<when test="od_group != null">
+			<![CDATA[
+				AND O.od_group = #{od_group}
+			]]>
+		</when>
+	</choose>
+</sql>
+
+
+
+<select id="od_total" resultType="int">
+	select count(*) from odr;
+</select>
+
+
+<!-- 주문상세 -->
+
+
+<update id="orderStatus">
+	update odr set od_status = #{od_status} where od_group = #{od_group}
+</update>
+
+<select id="od_detail" resultType="CartVO">
+	select C.*, I.it_name, I.file1, O.od_date, O.od_status, O.exp_time
+	from cart C 
+	left join item I on C.it_uid = I.it_uid
+	left join odr O on C.od_group = O.od_group
+	where C.od_group = #{od_group} and C.id = O.id order by C.ct_uid desc;
+</select>
+
+<select id="orderComplete" resultType="OdrVO">
+	select * from odr where od_group = #{od_group};
+</select>
+
+<select id="ordererInfo" resultType="OdrVO">
+	select O.id, M.* 
+	from odr O  
+	left join member M on O.id = M.id 
+	where od_group = #{od_group};
+</select>
+
+<update id="pay_done_update">
+	update time_record set pay_done = #{pay_done} where od_group = #{od_group}
+</update>
+
+<update id="delivering_update">
+	update time_record set delivering = #{delivering} where od_group = #{od_group}
+</update>
+
+<update id="dvr_done_update">
+	update time_record set dvr_done = #{dvr_done} where od_group = #{od_group}
+</update>
+
+<update id="od_cancel_update">
+	update time_record set od_cancel = #{od_cancel} where od_group = #{od_group}
+</update>
+
+<update id="it_refund_update">
+	update time_record set it_refund = #{it_refund} where od_group = #{od_group}
+</update>
+
+<select id="timeRecord" resultType="TimeRecordVO">
+	select * from time_record where od_group = #{od_group}
+</select>
+
+
+<!-- 상품목록-->
+
+<select id="item_total" resultType="int">
+	select count(*) from item
+	<!--필터링 시작 -->
+	<![CDATA[
+		where it_qty >= 0
+	]]>	
+	<include refid="category"></include>
+	<include refid="qty"></include>
+	<include refid="price"></include>
+	<include refid="new"></include>
+	<include refid="season"></include>
+	<!--필터링 끝 -->
+</select>
+
+<select id="itemSelect" resultType="ItemVO">
+	select * from item
+
+	<!--필터링 시작 -->
+	<![CDATA[
+		where it_qty >= 0
+	]]>	
+	<include refid="category"></include>
+	<include refid="qty"></include>
+	<include refid="price"></include>
+	<include refid="new"></include>
+	<include refid="season"></include>
+	order by it_uid desc limit #{pageStart}, #{perPageNum}
+	<!--필터링 끝 -->
+</select>
+
+
+<sql id="category">
+	<if test="it_category != null and !it_category.equals('')">
+		AND it_category = #{it_category}
+	</if>
+</sql>
+
+<sql id="qty">
+	<choose>
+		<when test="it_qty == null">
+		</when>
+		<when test="it_qty != null">
+			<![CDATA[
+				AND it_qty <= #{it_qty}
+			]]>
+		</when>
+	</choose>
+</sql>
+
+<sql id="price">
+		<choose>
+			<when test="it_price == null">
+			</when>
+			<when test="it_price != null">
+				<![CDATA[
+					AND it_price <= #{it_price}
+				]]>
+			</when>
+		</choose>
+</sql>
+
+<sql id="new">
+	<if test="it_new != null and !it_new.equals('')">
+		AND it_new = #{it_new}
+	</if>
+</sql>
+
+<sql id="season">
+	<if test="it_season != null and !it_season.equals('')">
+		AND it_season = #{it_season}
+	</if>
+</sql>
+
+
+<!-- 게시판 관리 -->
+
+<select id="board_count" resultType="int">
+	select count(*) from board
+	<!--필터링 시작 -->
+	<![CDATA[
+		where uid > 0
+	]]>	
+	<include refid="code"></include>
+	<include refid="gongji"></include>
+	<include refid="names2"></include>
+	<include refid="signdate"></include>
+	<!--필터링 끝 -->
+</select>
+
+<select id="boardSelect" resultType="BoardVO">
+	select * from board
+	<!--필터링 시작 -->
+	<![CDATA[
+		where uid > 0
+	]]>	
+	<include refid="code"></include>
+	<include refid="gongji"></include>
+	<include refid="names2"></include>
+	<include refid="signdate"></include>
+	order by uid desc limit #{pageStart}, #{perPageNum}
+	<!--필터링 끝 -->
+</select>
+
+<sql id="code">
+	<if test="code != null and !code.equals('')">
+		AND code = #{code}
+	</if>
+</sql>
+
+<sql id="gongji">
+	<if test="gongji != null and !gongji.equals('')">
+		AND gongji = #{gongji}
+	</if>
+</sql>
+
+<sql id="names2">
+	<if test="names != null and !names.equals('')">
+		AND names = #{names}
+	</if>
+</sql>
+
+<sql id="signdate">
+	<if test="signdate != null and !signdate.equals('')">
+		AND signdate like CONCAT ('%', #{signdate}, '%')
+	</if>
+</sql>
+
+<delete id="boardDlt">
+	delete from board where uid = #{uid}
+</delete>
+
+
+</mapper>
+
+
+
+

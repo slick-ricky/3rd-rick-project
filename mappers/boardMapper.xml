@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cafe.mapper.BoardMapper">
+
+	<insert id="create">
+		insert into board (subject, gongji, content, names, signdate, file1, file2, id, code) values (#{subject}, #{gongji}, #{content}, #{names}, #{signdate}, #{file1}, #{file2}, #{id}, #{code})
+	</insert>
+	
+	<insert id="addAttach">
+		insert into tbl_attach (fullName, uid) values (#{fullName},LAST_INSERT_ID())
+	</insert>
+	
+	<select id="getAttach" resultType="string">
+		select fullName from tbl_attach where uid = #{uid} order by fullName asc
+	</select>
+
+	<select id="view" resultType="BoardVO">
+		select * from board where uid = #{uid}
+	</select>
+	
+	<select id="previous" resultType="com.cafe.domain.BoardVO">
+		select board.subject from board where uid = #{uid}-1
+	</select>
+	
+	<select id="next" resultType="com.cafe.domain.BoardVO">
+		select board.subject from board where uid = #{uid}+1
+	</select>
+	
+	<update id="updateCnt">
+		update board set ref = ref + 1 where uid = #{uid}
+	</update>
+
+	<update id="update">
+		update board set subject =#{subject}, content =#{content}, names =#{names}, file1 =#{file1}, file2 =#{file2} where uid = #{uid}
+	</update>
+
+	<delete id="delete">
+		delete from board where uid = #{uid}
+	</delete>
+
+	<select id="list" resultType="com.cafe.domain.BoardVO">
+	<!-- <![CDATA[ ]] 쓰는 이유 -->
+	<!-- sql 구문안에 비교 연산자가 들어갈 경우(특수문자) 문자열로 인식하게 하기 위해서 ... -->
+	<![CDATA[
+		select * from board where where gongji != '1' and uid > 0 order by uid desc
+	]]>  
+	</select>
+	
+	<select id="list2" resultType="BoardVO">
+	<!-- <![CDATA[ ]] 쓰는 이유 -->
+	<!-- sql 구문안에 비교 연산자가 들어갈 경우(특수문자) 문자열로 인식하게 하기 위해서 ... -->
+	<![CDATA[
+		select *,(select count(*) from tbl_reply where tbl_reply.uid = board.uid) as uid_count from board where gongji = '1' and code = #{code} and uid > 0 order by uid desc
+	]]>  
+	</select>
+	
+	<select id="listPage" resultType="BoardVO">
+	<!-- resultType="BoardVO" 줄여서 사용할 수 있는 이유 -->
+	<!-- mybatis-config.xml에서 <typeAliases> 추가 했기 때문이다. -->
+	<![CDATA[
+		select * from board where gongji != '1' and uid > 0 order by uid desc, signdate desc limit #{page}, 10
+	]]>
+	</select>
+	
+	<select id="listCriteria" resultType="BoardVO">
+ 		<![CDATA[
+		select * from board where gongji != '1' and uid > 0 order by uid desc limit #{pageStart}, #{perPageNum}
+ 		]]>
+	</select>
+	
+	<select id="countPaging" resultType="int">
+ 		<![CDATA[
+		select count(uid) from board where gongji != '1' and uid > 0
+ 		]]>
+	</select>
+
+	<!-- search -->
+	<select id="listSearch" resultType="BoardVO">
+ 		<![CDATA[
+		select *,(select count(*) from tbl_reply where board.uid = tbl_reply.uid ) as uid_count from board where gongji != '1' and code = #{code} and uid > 0  
+ 		]]> 		
+		<include refid="search"></include> 
+ 		<![CDATA[
+		order by uid desc, signdate desc limit #{pageStart}, #{perPageNum}
+ 		]]>
+	</select>	
+
+	<select id="listSearchCount" resultType="int">
+ 		<![CDATA[
+		select count(uid) from board where gongji != '1' and code = #{code} and uid > 0 
+ 		]]>
+ 		<include refid="search"></include>
+	</select>
+
+	<sql id="search">
+	<if test="searchType != null" >
+
+		<!-- 
+		MyBatis에서는 변수가 자바객체처럼 사용되므로 
+		( OGNL (Object Graph Navigation Language)를 사용하여 속성 처리를 하고 있기 때문에 )
+		자바에서 사용되는 문자열 비교 메소드를 이용하면 된다.
+		단 비교할 문자를 먼저 쓴 경우도 에러 발생.
+
+		<if test="searchType == 't'.toString()"> (o)
+		<if test="searchType eq 't'.toString()"> (o)
+		<if test="searchType.toString() == 't'.toString()"> (o)
+		<if test="searchType.equalsIgnoreCase('t')"> (o)
+		<if test='searchType == "t"'> (o)
+
+		// 작은, 큰 따옴표 순서
+		<if test='"t".equals(searchType)'> (o)
+		<if test="'t'.equals(searchType)"> (x)
+		<if test='searchType.equals("t")'> (o)
+		<if test="searchType.equals('t')"> (x)
+		-->
+		
+		<if test="searchType == 't'.toString()">
+			and subject like CONCAT('%', #{keyword}, '%')
+		</if>
+		<if test="searchType == 'c'.toString()">
+			and content like CONCAT('%', #{keyword}, '%')
+		</if>
+		<if test="searchType == 'w'.toString()">
+			and names like CONCAT('%', #{keyword}, '%')
+		</if>
+		<if test="searchType == 'tc'.toString()">
+			and ( subject like CONCAT('%', #{keyword}, '%') OR content like CONCAT('%', #{keyword}, '%'))
+		</if>
+		<if test="searchType == 'cw'.toString()">
+			and ( content like CONCAT('%', #{keyword}, '%') OR names like CONCAT('%', #{keyword}, '%'))
+		</if>
+		<if test="searchType == 'tcw'.toString()">
+			and 
+			( subject like CONCAT('%', #{keyword}, '%') 
+			OR content like CONCAT('%', #{keyword}, '%') 
+			OR names like CONCAT('%', #{keyword}, '%'))
+		</if>
+	</if>
+	</sql>
+	
+	
+
+</mapper>

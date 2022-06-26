@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cafe.mapper.ItemMapper">
+
+	<!-- 상품처리 -->
+	
+	<select id="view" resultType="ItemVO">
+		select * from item where it_category = #{it_category} and it_uid = #{it_uid}
+	</select>
+	
+	<select id="list" resultType="ItemVO">
+	<!-- <![CDATA[ ]] 쓰는 이유 -->
+	<!-- sql 구문안에 비교 연산자가 들어갈 경우(특수문자) 문자열로 인식하게 하기 위해서 ... -->
+	<![CDATA[
+		select * from item where it_category = #{it_category} and it_uid > 0 order by it_uid desc
+	]]>  
+	</select>
+	
+	<!-- 상품리뷰 -->
+	
+	<select id="SelectItemReview" resultType="MyReviewVO">
+		select R.*, M.names from my_review R 
+		left join member M on R.id = M.id
+		left join item I on R.it_name = I.it_name
+		where I.it_uid = #{it_uid}
+		order by R.date desc;
+	</select>
+	
+	
+	<!-- 카트처리 -->
+	
+	<insert id="cartCreate">
+		insert into cart (ct_date, id, names, it_uid, od_price, od_amount, od_size, od_hot, od_request, od_point, od_num, checked, od_dvr, dlt, od_group) values (#{ct_date}, #{id}, #{names}, #{it_uid}, #{od_price}, #{od_amount}, #{od_size}, #{od_hot}, #{od_request}, #{od_point}, #{od_num}, "0", #{od_dvr}, "N", #{od_group})
+	</insert>
+	
+	<update id="removeChecked">
+		update cart set checked = "0" where id = #{id}
+	</update>
+	
+	<insert id="cartCreate2">
+		insert into cart (ct_date, id, names, it_uid, od_price, od_amount, od_size, od_hot, od_request, od_point, od_num, checked, od_dvr, dlt, od_group) values (#{ct_date}, #{id}, #{names}, #{it_uid}, #{od_price}, #{od_amount}, #{od_size}, #{od_hot}, #{od_request}, #{od_point}, #{od_num}, "1", #{od_dvr}, "N", #{od_group})
+	</insert>
+	
+	<select id="cartList" resultType="CartVO">
+	<!-- <![CDATA[ ]] 쓰는 이유 -->
+	<!-- sql 구문안에 비교 연산자가 들어갈 경우(특수문자) 문자열로 인식하게 하기 위해서 ... -->
+	<![CDATA[
+		select C.*, I.it_name, I.it_desc, I.it_price, I.file1, I.it_qty 
+		from cart C 
+		left join item I on C.it_uid = I.it_uid 
+		where C.id = #{id} and C.dlt = 'N'
+		order by ct_uid desc
+	]]>  
+	</select>
+	
+	<select id="cart_count" resultType="int">
+		select count(*) from cart where id =#{id} and dlt = "N"
+	</select>
+	
+	<select id="mem_point" resultType="int">
+		select point from member where id =#{id}
+	</select>
+	
+	<update id="itemCheck">
+		update cart set checked = #{checked} where od_num = #{od_num} and id = #{id} 
+	</update>
+	
+	<update id="checkAll">
+		update cart set checked = #{checked} where id = #{id} and od_group = 0
+	</update>
+	
+	<delete id="ct_dtl">
+		delete from cart where id = #{id} and ct_uid = #{ct_uid}
+	</delete>
+
+
+	
+	<!-- 결제처리 -->
+	
+	<select id="payInfo" resultType="CartVO">
+		select C.*, M.names, M.email, M.tel, M.point, I.it_name, I.file1
+		from cart C
+		left join member M on C.names = M.names
+		left join item I on C.it_uid = I.it_uid
+		where C.id = #{id} limit 1
+	</select>
+	
+	<select id="payInfo2" resultType="CartVO">
+		select C.*, M.names, M.email, M.tel, M.point, I.it_name, I.file1
+		from cart C
+		left join member M on C.names = M.names
+		left join item I on C.it_uid = I.it_uid
+		where C.id = #{id} and C.od_num = #{od_num} and ct_uid > 0 order by ct_uid desc
+	</select>
+	
+	<select id="payList" resultType="CartVO">
+	<!-- <![CDATA[ ]] 쓰는 이유 -->
+	<!-- sql 구문안에 비교 연산자가 들어갈 경우(특수문자) 문자열로 인식하게 하기 위해서 ... -->
+	<![CDATA[
+		select C.*, I.it_name, I.it_desc, I.it_price, I.file1 from cart C left join item I on C.it_uid = I.it_uid where C.id = #{id} and checked = "1" and ct_uid > 0 order by ct_uid desc
+	]]>  
+	</select>
+	
+	<select id="order_count" resultType="int">
+		select count(*) from cart where id = #{id} and checked = "1"
+	</select>
+	
+	<!-- 포인트 정산처리 by ajax-->
+	<update id="updatePoint">
+		update member set point = #{point} where id = #{id}
+	</update>
+	
+	<!-- 주문입력 후 처리 -->
+	
+	<insert id="orderInsert">
+		insert into odr (od_date, totalPay, cur_point, point_use2, exp_time, id, re_name, re_zip, re_addr1, re_addr2, re_phone, re_rq, od_status, paybank, payway, tp_od, tp_dvr, it_uid, od_group, od_count) values (#{od_date}, #{totalPay}, #{cur_point}, #{point_use2}, #{exp_time}, #{id}, #{re_name}, #{re_zip}, #{re_addr1}, #{re_addr2}, #{re_phone}, #{re_rq}, #{od_status}, #{paybank}, #{payway}, #{tp_od}, #{tp_dvr}, #{it_uid}, #{od_group}, #{od_count})
+	</insert>
+	
+	<update id="it_Deduction">
+		UPDATE item I 
+		LEFT JOIN cart C 
+		ON I.it_uid = C.it_uid
+		SET I.it_qty = I.it_qty - C.od_amount
+		WHERE C.od_group = #{od_group}
+	</update>
+	
+	<update id="pilePoint">
+		update member set point = #{point} where id = #{id}
+	</update>
+	
+	<update id="cartDelete">
+		update cart set dlt = "Y", checked = "0", od_group = #{od_group} where id = #{id} and checked = "1"
+	</update>
+	
+	<select id="orderComplete" resultType="OdrVO">
+		select * from odr where od_group = #{od_group};
+	</select>
+	
+	<select id="orderList" resultType="OdrVO">
+	<!-- <![CDATA[ ]] 쓰는 이유 -->
+	<!-- sql 구문안에 비교 연산자가 들어갈 경우(특수문자) 문자열로 인식하게 하기 위해서 ... -->
+	<![CDATA[
+		select O.*, I.it_name, I.file1, T.*
+		from odr O
+		left join item I on O.it_uid = I.it_uid
+		left join time_record T on O.od_group = T.od_group
+		where O.id = #{id} and T.od_cancel = "" order by od_uid desc;
+	]]>  
+	</select>
+	
+	<select id="orderCancel" resultType="OdrVO">
+	<!-- <![CDATA[ ]] 쓰는 이유 -->
+	<!-- sql 구문안에 비교 연산자가 들어갈 경우(특수문자) 문자열로 인식하게 하기 위해서 ... -->
+	<![CDATA[
+		select O.*, I.it_name, I.file1, T.*
+		from odr O
+		left join item I on O.it_uid = I.it_uid
+		left join time_record T on O.od_group = T.od_group
+		where O.id = #{id} and (T.od_cancel != "" or T.it_refund != "null") order by od_uid desc;
+	]]>  
+	</select>
+	
+	<select id="od_detail" resultType="CartVO">
+		select C.*, I.it_name, I.file1, O.od_date, O.od_status, O.exp_time
+		from cart C 
+		left join item I on C.it_uid = I.it_uid
+		left join odr O on C.od_group = O.od_group
+		where C.od_group = #{od_group} order by C.ct_uid desc;
+	</select>
+	
+	<select id="od_detail2" resultType="CartVO">
+		select C.*, I.it_name, I.file1, O.od_date, O.od_status, O.exp_time
+		from cart C 
+		left join item I on C.it_uid = I.it_uid
+		left join odr O on C.od_group = O.od_group
+		where C.od_group = #{od_group} order by C.ct_uid desc;
+	</select>
+	
+	<update id="orderCancel_up">
+		update time_record set od_cancel = #{od_cancel} where od_group = #{od_group}
+	</update>
+	
+	<update id="orderCancel_up2">
+		update odr set od_status = #{od_status} where od_group = #{od_group}
+	</update>
+	
+	<insert id="trInsert">
+		insert into time_record (od_group, od_received, pay_done, delivering, dvr_done, od_cancel) values (#{od_group}, #{od_received}, #{pay_done}, #{delivering}, #{dvr_done}, #{od_cancel})
+	</insert>
+	
+	<select id="trSelect" resultType="TimeRecordVO">
+		select * from time_record where od_group = #{od_group}
+	</select>
+	
+	<!-- 배송지 불러오기 -->
+	
+	<select id="selectMyDtn" resultType="DtnVO">
+		select * from dtn where id = #{id} order by uid desc
+	</select>
+	
+	<select id="selectDtn2" resultType="DtnVO">
+		select * from dtn where uid = #{uid} order by uid desc
+	</select>
+	
+	
+	
+</mapper>

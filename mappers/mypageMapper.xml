@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cafe.mapper.mypageMapper">
+
+<select id="review_info" resultType="OdrVO">
+	select O.*, I.it_name, I.file1
+	from odr O
+	left join item I on O.it_uid = I.it_uid
+	where od_group = #{od_group}
+</select>
+
+<insert id="myReview_insert">
+	insert into my_review (it_name, od_group, date, score, satisfied, comment, file1, id, it_file) values (#{it_name}, #{od_group}, #{date}, #{score}, #{satisfied}, #{comment}, #{file1}, #{id}, #{it_file})
+</insert>
+
+<select id="SelectMyReview" resultType="MyReviewVO">
+	select * from my_review
+	where id = #{id} order by date desc
+</select>
+
+<delete id="myReview_dlt">
+	delete from my_review where od_group = #{od_group}
+</delete>
+
+
+<!--리뷰작성 후 odr에 review여부 체크 -->
+
+<update id="reviewDone">
+	update odr set review = #{review} where od_group = #{od_group}
+</update>
+
+
+<!-- 내 게시글 리스트 -->
+	
+<select id="myBoardSelect" resultType="BoardVO">
+	select * from board where id = #{id} order by uid desc limit #{pageStart}, #{perPageNum}
+</select>
+
+<delete id="myBoardDlt">
+	delete from board where uid = #{uid}
+</delete>
+
+<select id="myBoard_countPaging" resultType="int">
+	<![CDATA[
+		select count(uid) from board where uid > 0 and id = #{id}
+	]]>
+</select>
+
+<!-- 배송지 관리-->
+
+<insert id="insertDtn">
+	insert into dtn (id, names, zip, addr1, addr2, tel) values (#{id}, #{names}, #{zip}, #{addr1}, #{addr2}, #{tel})
+</insert>
+
+<select id="selectMyDtn" resultType="DtnVO">
+	select * from dtn where id = #{id} order by uid desc
+</select>
+
+<delete id="deleteDtn">
+	delete from dtn where uid = #{uid}
+</delete>
+
+
+
+</mapper>
